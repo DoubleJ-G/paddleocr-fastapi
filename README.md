@@ -2,10 +2,7 @@
 
 A small FastAPI service that wraps [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) behind an HTTP endpoint.
 
-I built this for two reasons:
-
-1. To play with FastAPI.
-2. PaddleOCR has a heavy startup cost — initializing the engine takes seconds. Invoking it as a one-shot script per image is painful. Wrapping it in a long-running service keeps the engine warm in memory and reduces per-request latency to just the inference cost.
+I built this for a couple of reasons. Mostly I wanted to play with FastAPI. The other reason is that PaddleOCR has a heavy startup cost: initializing the engine takes seconds, so running it as a one-shot script per image is painful. Wrapping it in a long-running service keeps the engine warm and brings per-request latency back down to just the inference cost.
 
 The engine is loaded once at app startup (via FastAPI's `lifespan`) and reused across requests.
 
@@ -13,7 +10,7 @@ The engine is loaded once at app startup (via FastAPI's `lifespan`) and reused a
 
 ![OCR output on the test fixture](docs/sample_output.jpeg)
 
-The API returns text, per-box confidence, and pixel coordinates for each detection. Rendering an overlay like the one above isn't part of the service — it's something a caller can build on top of the response.
+The API returns text, per-box confidence, and pixel coordinates for each detection. Rendering an overlay like the one above isn't part of the service. It's something a caller can build on top of the response.
 
 ## Stack
 
@@ -81,13 +78,13 @@ Environment variables (via `pydantic-settings`):
 
 ## Design notes
 
-A few trade-offs worth calling out — they're not obvious from skimming the code.
+A few trade-offs that aren't obvious from skimming the code.
 
 ### Concurrency
 
 PaddleOCR inference is synchronous, CPU-bound, and takes seconds per image. Calling it directly from an `async def` handler would block the event loop, so even `/health` would hang while a single image was being processed. PaddleOCR also doesn't document its predictors as thread-safe, and there's a single shared engine cached on the app.
 
-The compromise: inference is gated behind an `asyncio.Semaphore(1)` and offloaded via `asyncio.to_thread`. Concurrent OCR requests queue rather than race on the shared engine, and the event loop stays free to serve everything else. Horizontal scaling (multiple Uvicorn workers, one engine each) is the path to higher throughput.
+So inference is gated behind an `asyncio.Semaphore(1)` and offloaded via `asyncio.to_thread`. Concurrent OCR requests queue rather than race on the shared engine, and the event loop stays free to serve everything else. The path to higher throughput is horizontal scaling: multiple Uvicorn workers, one engine each.
 
 Measured on `tests/fixtures/sample.jpeg` (~5s inference):
 
@@ -105,9 +102,9 @@ Two concurrent OCR requests:
 
 ### Model choice
 
-- **ONNX Runtime backend** rather than the default Paddle Inference runtime. Smaller install footprint, faster cold start, no GPU dependencies — the right default for a CPU-only service.
-- **Preprocessing:** document orientation classification and unwarping are enabled (`use_doc_orientation_classify=True`, `use_doc_unwarping=True`) so rotated scans and perspective-distorted phone photos still OCR correctly. Per-line orientation detection (`use_textline_orientation`) is left off — it's mainly useful for documents that mix horizontal and vertical text lines, which isn't the expected input here, and skipping it saves model load time and per-request latency.
-- **Lowered detection thresholds** (`text_det_thresh=0.2`, `text_det_box_thresh=0.4`) for better recall on faint or low-contrast text. The trade is more false-positive boxes — callers can filter on `confidence` if precision matters.
+- **ONNX Runtime backend** rather than the default Paddle Inference runtime. Smaller install footprint, faster cold start, no GPU dependencies. Fits a CPU-only service.
+- **Preprocessing:** document orientation classification and unwarping are enabled (`use_doc_orientation_classify=True`, `use_doc_unwarping=True`) so rotated scans and perspective-distorted phone photos still OCR correctly. Per-line orientation detection (`use_textline_orientation`) is left off, since it's mainly useful for documents that mix horizontal and vertical text lines, which isn't the expected input here. Skipping it saves model load time and a bit of per-request latency.
+- **Lowered detection thresholds** (`text_det_thresh=0.2`, `text_det_box_thresh=0.4`) for better recall on faint or low-contrast text. The trade is more false-positive boxes; callers can filter on `confidence` if precision matters.
 
 ### Image preprocessing
 
