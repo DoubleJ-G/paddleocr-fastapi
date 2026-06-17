@@ -2,7 +2,7 @@ import structlog
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.config import settings
-from app.ocr_service import process_ocr
+from app.ocr_service import process_ocr_async
 from app.schemas import OCRResponse
 
 logger = structlog.get_logger(__name__)
@@ -36,5 +36,5 @@ async def ocr_image(file: UploadFile = File(...)):
         logger.error("Failed to read uploaded file", filename=file.filename)
         raise HTTPException(status_code=400, detail="Could not read file") from e
 
-    outputs = process_ocr(bytes(contents))
+    outputs = await process_ocr_async(bytes(contents))
     return OCRResponse(results=outputs)

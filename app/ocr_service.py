@@ -1,3 +1,4 @@
+import asyncio
 import io
 import time
 from collections.abc import Iterator
@@ -14,6 +15,11 @@ from app.ocr_engine import get_ocr
 from app.schemas import OCRBox
 
 logger = structlog.get_logger(__name__)
+
+# PaddleOCR isn't documented as thread-safe and we hold a single shared engine, so
+# inference is serialized. Horizontal scaling (multiple workers) is the path to
+# higher throughput.
+_inference_semaphore = asyncio.Semaphore(1)
 
 
 @contextmanager
@@ -93,3 +99,8 @@ def process_ocr(image_bytes: bytes) -> list[OCRBox]:
         texts=[o.text for o in outputs],
     )
     return outputs
+
+
+async def process_ocr_async(image_bytes: bytes) -> list[OCRBox]:
+    async with _inference_semaphore:
+        return await asyncio.to_thread(process_ocr, image_bytes)
