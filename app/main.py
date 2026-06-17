@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.logging_setup import setup_logging
 from app.ocr_engine import close_ocr, get_ocr
-from app.routers import health, ocr
+from app.routers import docs, health, ocr
 
 setup_logging()
 logger = structlog.get_logger(__name__)
@@ -32,4 +32,5 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(docs.router)
 app.include_router(ocr.router)
