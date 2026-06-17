@@ -12,8 +12,8 @@ def get_ocr() -> PaddleOCR:
     return PaddleOCR(
         lang="en",
         engine="onnxruntime",
-        use_doc_orientation_classify=False,
-        use_doc_unwarping=False,
+        use_doc_orientation_classify=True,
+        use_doc_unwarping=True,
         use_textline_orientation=False,
         text_det_thresh=0.2,
         text_det_box_thresh=0.4,

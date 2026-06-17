@@ -12,7 +12,7 @@ The engine is loaded once at app startup (via FastAPI's `lifespan`) and reused a
 ## Stack
 
 - Python 3.12+, FastAPI, Uvicorn
-- PaddleOCR 3.7 with the ONNX Runtime backend (English, detection-only — no orientation/unwarping)
+- PaddleOCR 3.7 with the ONNX Runtime backend (English; document orientation + unwarping enabled, per-line orientation disabled)
 - `structlog` for JSON logging
 - `uv` for dependency management
 - Scalar for API docs
@@ -100,7 +100,7 @@ Two concurrent OCR requests:
 ### Model choice
 
 - **ONNX Runtime backend** rather than the default Paddle Inference runtime. Smaller install footprint, faster cold start, no GPU dependencies — the right default for a CPU-only service.
-- **Detection + recognition only.** Orientation classification and document unwarping are disabled in `ocr_engine.py`, since both add latency and aren't needed for the common case (already-upright photos and screenshots).
+- **Preprocessing:** document orientation classification and unwarping are enabled (`use_doc_orientation_classify=True`, `use_doc_unwarping=True`) so rotated scans and perspective-distorted phone photos still OCR correctly. Per-line orientation detection (`use_textline_orientation`) is left off — it's mainly useful for documents that mix horizontal and vertical text lines, which isn't the expected input here, and skipping it saves model load time and per-request latency.
 - **Lowered detection thresholds** (`text_det_thresh=0.2`, `text_det_box_thresh=0.4`) for better recall on faint or low-contrast text. The trade is more false-positive boxes — callers can filter on `confidence` if precision matters.
 
 ### Image preprocessing
