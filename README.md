@@ -1,4 +1,4 @@
-# fast-api-ocr
+# paddleocr-fastapi
 
 A small FastAPI service that wraps [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) behind an HTTP endpoint.
 
