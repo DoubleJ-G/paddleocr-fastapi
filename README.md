@@ -9,6 +9,12 @@ I built this for two reasons:
 
 The engine is loaded once at app startup (via FastAPI's `lifespan`) and reused across requests.
 
+## Sample output
+
+![OCR output on the test fixture](docs/sample_output.jpeg)
+
+The API returns text, per-box confidence, and pixel coordinates for each detection. Rendering an overlay like the one above isn't part of the service — it's something a caller can build on top of the response.
+
 ## Stack
 
 - Python 3.12+, FastAPI, Uvicorn
